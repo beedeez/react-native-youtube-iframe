@@ -7,8 +7,8 @@ import React, {
   useImperativeHandle,
   useMemo,
 } from 'react';
-import {View, StyleSheet, Platform} from 'react-native';
 import {WebView} from './WebView';
+import {View, StyleSheet, Platform} from 'react-native';
 import {
   PLAYER_ERROR,
   PLAYER_STATES,
@@ -22,6 +22,16 @@ import {
   MAIN_SCRIPT,
   PLAYER_FUNCTIONS,
 } from './PlayerScripts';
+
+const isWeb = Platform.OS === 'web';
+
+const isJSON = str => {
+  try {
+    return !!JSON.parse(str);
+  } catch (error) {
+    return false;
+  }
+};
 
 const YoutubeIframe = (props, ref) => {
   const {
@@ -43,6 +53,7 @@ const YoutubeIframe = (props, ref) => {
     playListStartIndex = 0,
     initialPlayerParams = {},
     allowWebViewZoom = false,
+    onProgress = _event => {},
     forceAndroidAutoplay = false,
     onChangeState = _event => {},
     onFullScreenChange = _status => {},
@@ -117,22 +128,37 @@ const YoutubeIframe = (props, ref) => {
       return;
     }
 
-    [
-      playMode[play],
-      soundMode[mute],
-      PLAYER_FUNCTIONS.setVolume(volume),
-      PLAYER_FUNCTIONS.setPlaybackRate(playbackRate),
-    ].forEach(webViewRef.current.injectJavaScript);
+    if (!isWeb) {
+      [
+        playMode[play],
+        soundMode[mute],
+        PLAYER_FUNCTIONS.setVolume(volume),
+        PLAYER_FUNCTIONS.setPlaybackRate(playbackRate),
+      ].forEach(webViewRef.current.injectJavaScript);
+    }
   }, [play, playerReady, mute, volume, playbackRate]);
 
   const onWebMessage = useCallback(
     event => {
       try {
-        const message = JSON.parse(event.nativeEvent.data);
+        let message = {};
+
+        if (isJSON(event?.nativeEvent?.data)) {
+          message = JSON.parse(event.nativeEvent.data);
+        } else {
+          message = event.nativeEvent.data;
+        }
+
+        if (isJSON(message.data)) {
+          message.data = JSON.parse(message.data);
+        }
 
         switch (message.eventType) {
           case 'fullScreenChange':
             onFullScreenChange(message.data);
+            break;
+          case 'onPlayerProgress':
+            onProgress(message.data.info);
             break;
           case 'playerStateChange':
             onChangeState(PLAYER_STATES[message.data]);
@@ -172,6 +198,7 @@ const YoutubeIframe = (props, ref) => {
       onReady,
       onError,
       playList,
+      onProgress,
       onChangeState,
       onFullScreenChange,
       playListStartIndex,
@@ -217,7 +244,7 @@ const YoutubeIframe = (props, ref) => {
     const base = baseUrlOverride || DEFAULT_BASE_URL;
     const data = ytScript.urlEncodedJSON;
 
-    return {uri: base + '?data=' + data};
+    return {uri: base + '?data=' + data, method: 'get'};
   }, [
     videoId,
     playList,

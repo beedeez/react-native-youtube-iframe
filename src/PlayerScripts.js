@@ -210,33 +210,75 @@ export const MAIN_SCRIPT = (
         });
       }
 
+      function handleMessageDispatch(e) {
+        const {type, data} = e;
+
+        const {event, eventType} = JSON.parse(data);
+
+        const eventName = event || eventType;
+
+        switch (eventName) {
+          case 'onReady':
+            return onPlayerReady(e);
+
+          case 'infoDelivery':
+            return onPlayerProgress(e);
+
+          case 'onStateChange':
+            return onPlayerStateChange(e);
+
+          case 'onError':
+            return onPlayerError(e);
+
+          case 'onPlaybackQualityChange':
+            return onPlaybackQualityChange(e);
+
+          case 'onPlaybackRateChange':
+            return onPlaybackRateChange(e);
+        }
+      }
+
+      function sendMessageToRN(msg) {
+        setTimeout(() => {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+          } else {
+            window.parent.postMessage(JSON.stringify(msg));
+          }
+        }, 100);
+      }
+
       function onPlayerError(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerError', data: event.data}))
+        sendMessageToRN({eventType: 'playerError', data: event.data});
       }
 
       function onPlaybackRateChange(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playbackRateChange', data: event.data}))
+        sendMessageToRN({eventType: 'playbackRateChange', data: event.data});
       }
 
       function onPlaybackQualityChange(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerQualityChange', data: event.data}))
+        sendMessageToRN({eventType: 'playerQualityChange', data: event.data});
       }
 
       function onPlayerReady(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerReady'}))
+        sendMessageToRN({eventType: 'playerReady'});
       }
 
-      var done = false;
       function onPlayerStateChange(event) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'playerStateChange', data: event.data}))
+        sendMessageToRN({eventType: 'playerStateChange', data: event.data});
+      }
+
+      function onPlayerProgress(event) {
+        sendMessageToRN({eventType: 'onPlayerProgress', data: event.data});
       }
 
       var isFullScreen = false;
       function onFullScreenChange() {
         isFullScreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-        window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'fullScreenChange', data: Boolean(isFullScreen)}));
+        sendMessageToRN({eventType: 'fullScreenChange', data: Boolean(isFullScreen)});
       }
 
+      window.addEventListener('message', handleMessageDispatch)
       document.addEventListener('fullscreenchange', onFullScreenChange)
       document.addEventListener('mozfullscreenchange', onFullScreenChange)
       document.addEventListener('msfullscreenchange', onFullScreenChange)

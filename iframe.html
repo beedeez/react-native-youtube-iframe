@@ -54,7 +54,13 @@
       } = JSON.parse(UrlQueryData);
 
       function sendMessageToRN(msg) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        setTimeout(() => {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+          } else {
+            window.parent.postMessage(JSON.stringify(msg));
+          }
+        }, 100);
       }
 
       let metaString = '';
@@ -108,6 +114,34 @@
         });
       }
 
+      function handleMessageDispatch(e) {
+        const {type, data} = e;
+
+        const {event, eventType} = JSON.parse(data);
+
+        const eventName = event || eventType;
+
+        switch (eventName) {
+          case 'onReady':
+            return onPlayerReady(e);
+
+          case 'infoDelivery':
+            return onPlayerProgress(e);
+
+          case 'onStateChange':
+            return onPlayerStateChange(e);
+
+          case 'onError':
+            return onPlayerError(e);
+
+          case 'onPlaybackQualityChange':
+            return onPlaybackQualityChange(e);
+
+          case 'onPlaybackRateChange':
+            return onPlaybackRateChange(e);
+        }
+      }
+
       function onPlayerError(event) {
         sendMessageToRN({eventType: 'playerError', data: event.data});
       }
@@ -142,6 +176,7 @@
         });
       }
 
+      window.addEventListener('message', handleMessageDispatch);
       document.addEventListener('fullscreenchange', onFullScreenChange);
       document.addEventListener('msfullscreenchange', onFullScreenChange);
       document.addEventListener('mozfullscreenchange', onFullScreenChange);
