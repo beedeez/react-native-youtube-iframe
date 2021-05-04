@@ -161,7 +161,10 @@ const YoutubeIframe = (props, ref) => {
             onProgress(message.data.info);
             break;
           case 'playerStateChange':
-            onChangeState(PLAYER_STATES[message.data]);
+            const state = PLAYER_STATES[message.data];
+            if (state) {
+              onChangeState(PLAYER_STATES[message.data]);
+            }
             break;
           case 'playerReady':
             onReady();
